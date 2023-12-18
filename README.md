@@ -1,1 +1,0 @@
-# animacja-allegro-cpp--sprite
