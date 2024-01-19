@@ -192,11 +192,8 @@ int main() {
 
     vec2 position(300.0, 200.0);
     vec2 velocity(2.0, 7.0);
-    Ball ball(position, velocity);
-
     vec2 pos(350.0, 250.0);
     vec2 vel(0.0, 2.0);
-    Ball ball2(pos, vel);
 
     BallContainer ballList;
     ballList.AddBall(position, velocity);
