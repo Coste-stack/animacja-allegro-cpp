@@ -1,6 +1,9 @@
 #include <iostream>
 #include <sstream>
+#include <vector>
 #include <random>
+#include <list>
+
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_native_dialog.h>
 #include <allegro5/allegro_image.h>
@@ -14,9 +17,11 @@ using namespace std;
 
 const float deltaTime = 1.0 / 60.0;
 
+random_device rd;  // Declare random_device globally
+
 struct vec2 {
     float x, y;
-    
+
     // Default constructor (initialize to zero)
     vec2() : x(0.0), y(0.0) {}
 
@@ -26,11 +31,11 @@ struct vec2 {
 
 struct vec4 {
     float x1, x2, y1, y2;
-    
+
     vec4(int x1, int y1, int x2, int y2) : x1(x1), y1(y1), x2(x2), y2(y2) {}
 };
 
-float damper(float value, float goal, float factor = 0.1) {
+float Damper(float value, float goal, float factor = 0.1) {
     return (1.0f - factor) * value + factor * goal;
 }
 
@@ -42,7 +47,7 @@ public:
 
     Square(vec4 square, int squareThickness = 5) : square(square), squareThickness(squareThickness) {}
 
-    void draw() {
+    void Draw() {
         al_draw_rectangle(square.x1, square.y1, square.x2, square.y2, al_map_rgb(255, 255, 255), squareThickness);
     }
 };
@@ -58,7 +63,7 @@ class Ball : Square {
     bool m_awake = true;
     float y_last = square.y1, y_now;
 public:
-    const float epsilon = 1.0f;
+    const float epsilon = 1.0;
     float gravity = 0.5, energyLoss = 0.8;
     vec2 position, velocity;
 
@@ -70,12 +75,12 @@ public:
         al_destroy_bitmap(player);
     }
 
-    void draw() {
-        //al_draw_tinted_scaled_bitmap(player, al_map_rgb(random_number(), random_number(), random_number()), 0, 0, imageWidth, imageHeight, position.x, position.y, imageWidthScaled, imageHeightScaled, 0);
+    void Draw() {
+        //al_draw_tinted_scaled_bitmap(player, al_map_rgb(random_number(0, 255), random_number(0, 255), random_number(0, 255)), 0, 0, imageWidth, imageHeight, position.x, position.y, imageWidthScaled, imageHeightScaled, 0);
         al_draw_scaled_bitmap(player, 0, 0, imageWidth, imageHeight, position.x, position.y, imageWidthScaled, imageHeightScaled, 0);
     }
 
-    void Coll() {
+    void Collision() {
         position.x += velocity.x * energyLoss;
         position.y += velocity.y * energyLoss;
         velocity.y += gravity;
@@ -103,29 +108,72 @@ public:
             velocity.x = -velocity.x * energyLoss;
             position.x = square.x1;
         }
+
         if (m_awake) {
             if (position.y < y_now)
                 y_now = position.y;
         }
         else {
-            energyLoss = damper(energyLoss, 0, 0.01F);
+            energyLoss = Damper(energyLoss, 0, 0.01F);
         }
+    }
+
+    void Display() const {
+        std::cout << "position: " << position.x << ", " << position.y << std::endl;
+        std::cout << "velocity: " << velocity.x << ", " << velocity.y << std::endl;
+        std::cout << std::endl;
     }
 };
 
-int random_number() {
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> distr(0, 255);
+class BallContainer {
+    std::vector<Ball*> balls;
+public:
+    // Constructor
+    BallContainer() {}
+
+    // Destructor to free allocated memory
+    ~BallContainer() {
+        for (const auto& ballPtr : balls) {
+            delete ballPtr;
+        }
+        balls.clear();
+    }
+
+    // Add a Ball object to the vector
+    void AddBall(vec2 position, vec2 velocity) {
+        Ball* ball = new Ball(position, velocity);
+        balls.push_back(ball);
+    }
+
+    // Display all the Ball objects in the vector
+    void DisplayBalls() const {
+        for (const auto& ballPtr : balls) {
+            ballPtr->Draw();
+            ballPtr->Collision();
+        }
+    }
+};
+/*
+int random_number(int a, int b) {
+    mt19937 gen(rd());  // Use the globally declared random_device
+    uniform_int_distribution<> distr(a, b);
     return distr(gen);
 }
 
+void add_ball(vector<Ball>& lista, const vec4& square) {
+    vec2 position(random_number(square.x1, square.x2), random_number(square.y1, square.y2));
+    vec2 velocity(random_number(1, 20), random_number(1, 20));
+    Ball newBall(position, velocity);
+    lista.push_back(newBall);
+}
+*/
 int main() {
     al_init();
     al_init_primitives_addon();
     al_init_image_addon();
     al_init_font_addon();
-    al_init_ttf_addon(); 
+    al_init_ttf_addon();
+    al_install_mouse();
 
     ALLEGRO_DISPLAY* display = al_create_display(ScreenWidth, ScreenHeight);
     ALLEGRO_EVENT_QUEUE* event_queue = al_create_event_queue();
@@ -133,18 +181,27 @@ int main() {
 
     al_register_event_source(event_queue, al_get_timer_event_source(timer));
     al_register_event_source(event_queue, al_get_display_event_source(display));
+    al_register_event_source(event_queue, al_get_mouse_event_source());
 
     ALLEGRO_FONT* font = al_load_font("OpenSans-Regular.ttf", 36, 0);
     std::ostringstream text;
 
     vec4 square(200, 100, 500, 400);
     int squareThickness = 5;
+    Square box(square, squareThickness);
 
     vec2 position(300.0, 200.0);
     vec2 velocity(2.0, 7.0);
-
-    Square box(square, squareThickness);
     Ball ball(position, velocity);
+
+    vec2 pos(350.0, 250.0);
+    vec2 vel(0.0, 2.0);
+    Ball ball2(pos, vel);
+
+    BallContainer ballList;
+    ballList.AddBall(position, velocity);
+    ballList.AddBall(pos, vel);
+    ballList.AddBall(pos, velocity);
 
     al_start_timer(timer);
     bool done = false;
@@ -156,21 +213,17 @@ int main() {
             done = true;
         }
         else if (events.type == ALLEGRO_EVENT_TIMER) {
-            ball.Coll();
+            ballList.DisplayBalls();
 
-            box.draw();
-            ball.draw();
-
-            text << "gravity: " << ball.gravity;
-            al_draw_text(font, al_map_rgb(255, 255, 255), square.x2 - 100, square.y2, ALLEGRO_ALIGN_LEFT, text.str().c_str());
-            text.str("");
-            text << "energyLoss: " << ball.energyLoss;
-            al_draw_text(font, al_map_rgb(255, 255, 255), square.x2 - 100, square.y2 + 40, ALLEGRO_ALIGN_LEFT, text.str().c_str());
-            text.str("");
-
+            box.Draw();
             al_flip_display();
             al_clear_to_color(al_map_rgb(0, 0, 0));
         }
+        /*
+        else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && events.mouse.button & 1) {
+            // Dodaj now¹ pi³kê po lewym klikniêciu myszy
+            add_ball(ballList, square);
+        } */
     }
 
     al_destroy_font(font);
