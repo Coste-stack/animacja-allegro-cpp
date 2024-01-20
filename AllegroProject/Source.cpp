@@ -1,8 +1,7 @@
-#include <iostream>
+ï»¿#include <iostream>
 #include <sstream>
 #include <vector>
 #include <random>
-#include <list>
 
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_native_dialog.h>
@@ -30,7 +29,7 @@ struct vec2 {
 };
 
 struct vec4 {
-    float x1, x2, y1, y2;
+    int x1, x2, y1, y2;
 
     vec4(int x1, int y1, int x2, int y2) : x1(x1), y1(y1), x2(x2), y2(y2) {}
 };
@@ -39,37 +38,64 @@ float Damper(float value, float goal, float factor = 0.1) {
     return (1.0f - factor) * value + factor * goal;
 }
 
-class Square {
+class Drawable {
 public:
-    vec4 square;
-    int squareThickness;
-    Square() : square(200, 100, 500, 400), squareThickness(5) {}
+    virtual void Draw() = 0;
+    virtual ~Drawable() {}
+};
 
-    Square(vec4 square, int squareThickness = 5) : square(square), squareThickness(squareThickness) {}
+class Square : public Drawable {
+public:
+    vec4 square_position;
+    int square_thickness;
+    Square() : square_position(200, 100, 500, 400), square_thickness(5) {}
 
-    void Draw() {
-        al_draw_rectangle(square.x1, square.y1, square.x2, square.y2, al_map_rgb(255, 255, 255), squareThickness);
+    Square(vec4 square_position, int square_thickness = 5) : square_position(square_position), square_thickness(square_thickness) {}
+
+    void Draw() override {
+        al_draw_rectangle(square_position.x1, square_position.y1, square_position.x2, square_position.y2, al_map_rgb(255, 255, 255), square_thickness);
     }
 };
 
-class Ball : Square {
-    ALLEGRO_BITMAP* player = al_load_bitmap("Bitmapa.png");
-    int imageWidth = al_get_bitmap_width(player);
-    int imageHeight = al_get_bitmap_height(player);
-    float imageScale = 0.3;
-    float imageWidthScaled = imageWidth * imageScale;
-    float imageHeightScaled = imageHeight * imageScale;
+class Ball {
+    Square classSquare;
 
-    bool m_awake = true;
-    float y_last = square.y1, y_now;
+    ALLEGRO_BITMAP* player;
+    int imageWidth, imageHeight;
+    float imageScale;
+    float imageWidthScaled, imageHeightScaled;
+
+    bool ball_stop = false;
+    float y_last, y_now;
+
 public:
     const float epsilon = 1.0;
-    float gravity = 0.5, energyLoss = 0.8;
-    vec2 position, velocity;
+    float gravity = 0.3, energyLoss = 0.8;
+    vec2 ball_position, ball_velocity;
 
-    Ball() : position(300.0, 200.0), velocity(2.0, 7.0), y_now(position.y) {}
+    void Initialize() {
+        vec4 square_position(200, 100, 500, 400);
+        int square_thickness = 5;
+        Square box(square_position, square_thickness);
+        classSquare = box;
 
-    Ball(vec2 position, vec2 velocity) : position(position), velocity(velocity), y_now(position.y) {}
+        player = al_load_bitmap("Bitmapa.png");
+        imageWidth = al_get_bitmap_width(player);
+        imageHeight = al_get_bitmap_height(player);
+        imageScale = 0.3;
+        imageWidthScaled = imageWidth * imageScale;
+        imageHeightScaled = imageHeight * imageScale;
+
+        y_last = classSquare.square_position.y1;
+    }
+
+    Ball() : ball_position(300.0, 200.0), ball_velocity(2.0, 7.0), y_now(ball_position.y) {
+        Initialize();
+    }
+
+    Ball(vec2 ball_position, vec2 ball_velocity) : ball_position(ball_position), ball_velocity(ball_velocity), y_now(ball_position.y) {
+        Initialize();
+    }
 
     ~Ball() {
         al_destroy_bitmap(player);
@@ -77,50 +103,50 @@ public:
 
     void Draw() {
         //al_draw_tinted_scaled_bitmap(player, al_map_rgb(random_number(0, 255), random_number(0, 255), random_number(0, 255)), 0, 0, imageWidth, imageHeight, position.x, position.y, imageWidthScaled, imageHeightScaled, 0);
-        al_draw_scaled_bitmap(player, 0, 0, imageWidth, imageHeight, position.x, position.y, imageWidthScaled, imageHeightScaled, 0);
+        al_draw_scaled_bitmap(player, 0, 0, imageWidth, imageHeight, ball_position.x, ball_position.y, imageWidthScaled, imageHeightScaled, 0);
     }
 
     void Collision() {
-        position.x += velocity.x * energyLoss;
-        position.y += velocity.y * energyLoss;
-        velocity.y += gravity;
+        ball_position.x += ball_velocity.x * energyLoss;
+        ball_position.y += ball_velocity.y * energyLoss;
+        ball_velocity.y += gravity;
 
         // kolizja
-        if (position.y + imageHeightScaled > square.y2) {
-            velocity.y = -velocity.y * energyLoss;
-            position.y = square.y2 - imageHeightScaled;
+        if (ball_position.y + imageHeightScaled > classSquare.square_position.y2) {
+            ball_velocity.y = -ball_velocity.y * energyLoss;
+            ball_position.y = classSquare.square_position.y2 - imageHeightScaled;
 
             if (y_now - y_last < epsilon and y_now != y_last) {
-                m_awake = false;
+                ball_stop = true;
             }
 
             y_last = y_now;
-            y_now = position.y;
+            y_now = ball_position.y;
         }
-        else if (position.y < square.y1) {
-            velocity.y = -velocity.y * energyLoss;
+        else if (ball_position.y < classSquare.square_position.y1) {
+            ball_velocity.y = -ball_velocity.y * energyLoss;
         }
-        else if (position.x > square.x2 - imageWidthScaled) {
-            velocity.x = -velocity.x * energyLoss;
-            position.x = square.x2 - imageWidthScaled;
+        else if (ball_position.x > classSquare.square_position.x2 - imageWidthScaled) {
+            ball_velocity.x = -ball_velocity.x * energyLoss;
+            ball_position.x = classSquare.square_position.x2 - imageWidthScaled;
         }
-        else if (position.x < square.x1) {
-            velocity.x = -velocity.x * energyLoss;
-            position.x = square.x1;
+        else if (ball_position.x < classSquare.square_position.x1) {
+            ball_velocity.x = -ball_velocity.x * energyLoss;
+            ball_position.x = classSquare.square_position.x1;
         }
 
-        if (m_awake) {
-            if (position.y < y_now)
-                y_now = position.y;
+        if (!ball_stop) {
+            if (ball_position.y < y_now)
+                y_now = ball_position.y;
         }
         else {
             energyLoss = Damper(energyLoss, 0, 0.01F);
         }
     }
 
-    void Display() const {
-        std::cout << "position: " << position.x << ", " << position.y << std::endl;
-        std::cout << "velocity: " << velocity.x << ", " << velocity.y << std::endl;
+    void Display() {
+        std::cout << "position: " << ball_position.x << ", " << ball_position.y << std::endl;
+        std::cout << "velocity: " << ball_velocity.x << ", " << ball_velocity.y << std::endl;
         std::cout << std::endl;
     }
 };
@@ -140,8 +166,8 @@ public:
     }
 
     // Add a Ball object to the vector
-    void AddBall(vec2 position, vec2 velocity) {
-        Ball* ball = new Ball(position, velocity);
+    void AddBall(vec2 ball_position, vec2 ball_velocity) {
+        Ball* ball = new Ball(ball_position, ball_velocity);
         balls.push_back(ball);
     }
 
@@ -186,9 +212,10 @@ int main() {
     ALLEGRO_FONT* font = al_load_font("OpenSans-Regular.ttf", 36, 0);
     std::ostringstream text;
 
-    vec4 square(200, 100, 500, 400);
-    int squareThickness = 5;
-    Square box(square, squareThickness);
+    vec4 square_position(200, 100, 500, 400);
+    int square_thickness = 5;
+
+    Square box(square_position, square_thickness);
 
     vec2 position(300.0, 200.0);
     vec2 velocity(2.0, 7.0);
@@ -218,7 +245,7 @@ int main() {
         }
         /*
         else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && events.mouse.button & 1) {
-            // Dodaj now¹ pi³kê po lewym klikniêciu myszy
+            // Dodaj nowÄ… piÅ‚kÄ™ po lewym klikniÄ™ciu myszy
             add_ball(ballList, square);
         } */
     }
