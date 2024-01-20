@@ -2,6 +2,7 @@
 #include <sstream>
 #include <vector>
 #include <random>
+#include <fstream>
 
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_native_dialog.h>
@@ -58,6 +59,24 @@ public:
 };
 
 class Ball {
+    class FileWriter {
+        std::string filename;
+    public:
+        FileWriter(const std::string& filename) : filename(filename) {}
+
+        void WriteToFile(const std::string& content) {
+            std::ofstream file(filename, std::ios::app);
+            if (file.is_open()) {
+                file << content << std::endl;
+                file.close();
+            }
+            else {
+                // Handle file opening error
+                std::cerr << "Error: Could not open file " << filename << " for writing." << std::endl;
+            }
+        }
+    };
+
     Square classSquare;
 
     ALLEGRO_BITMAP* player;
@@ -140,7 +159,7 @@ public:
                 y_now = ball_position.y;
         }
         else {
-            energyLoss = Damper(energyLoss, 0, 0.01F);
+            energyLoss = Damper(energyLoss, 0, 0.01);
         }
     }
 
@@ -179,20 +198,20 @@ public:
         }
     }
 };
-/*
-int random_number(int a, int b) {
+
+int RandomNumber(int a, int b) {
     mt19937 gen(rd());  // Use the globally declared random_device
     uniform_int_distribution<> distr(a, b);
     return distr(gen);
 }
 
-void add_ball(vector<Ball>& lista, const vec4& square) {
-    vec2 position(random_number(square.x1, square.x2), random_number(square.y1, square.y2));
-    vec2 velocity(random_number(1, 20), random_number(1, 20));
-    Ball newBall(position, velocity);
-    lista.push_back(newBall);
+void CreateBall(BallContainer &ballList, const vec4& square) {
+    const int offset = 20;
+    vec2 position(RandomNumber(square.x1 + offset, square.x2 - offset), RandomNumber(square.y1 + offset, square.y2 - offset));
+    vec2 velocity(RandomNumber(1, 10), RandomNumber(1, 10));
+    ballList.AddBall(position, velocity);
 }
-*/
+
 int main() {
     al_init();
     al_init_primitives_addon();
@@ -214,7 +233,6 @@ int main() {
 
     vec4 square_position(200, 100, 500, 400);
     int square_thickness = 5;
-
     Square box(square_position, square_thickness);
 
     vec2 position(300.0, 200.0);
@@ -243,11 +261,11 @@ int main() {
             al_flip_display();
             al_clear_to_color(al_map_rgb(0, 0, 0));
         }
-        /*
-        else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && events.mouse.button & 1) {
+        else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
             // Dodaj nową piłkę po lewym kliknięciu myszy
-            add_ball(ballList, square);
-        } */
+            if (events.mouse.button & 1)
+                CreateBall(ballList, square_position);
+        }
     }
 
     al_destroy_font(font);
