@@ -433,7 +433,13 @@ int main() {
             // Dodaj nową piłkę po lewym kliknięciu myszy
             if (events.mouse.button & 1)
                 ballList.CreateColoredBall();
+                if (ballList.ballCounter > ballList.maxBallNumber)
+                    done = true;
         }
+
+        text << "Number of created balls: " << ballList.ballCounter;
+        al_draw_text(font, al_map_rgb(255, 255, 255), square_position.x1 - 100, square_position.y2, ALLEGRO_ALIGN_LEFT, text.str().c_str());
+        text.str("");
     }
 
     al_destroy_font(font);
