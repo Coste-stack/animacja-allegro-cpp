@@ -38,6 +38,12 @@ float Damper(float value, float goal, float factor = 0.1) {
     return (1.0f - factor) * value + factor * goal;
 }
 
+int RandomNumber(int a, int b) {
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distr(a, b);
+    return distr(gen);
+}
+
 class Drawable {
 public:
     virtual void Draw() = 0;
@@ -57,24 +63,7 @@ public:
     }
 };
 
-class Ball {
-    class FileWriter {
-        std::string filename;
-    public:
-        FileWriter(const std::string& filename) : filename(filename) {}
-
-        void WriteToFile(const std::string& content) {
-            std::ofstream file(filename, std::ios::app);
-            if (file.is_open()) {
-                file << content << std::endl;
-                file.close();
-            }
-            else {
-                // Handle file opening error
-                std::cerr << "Error: Could not open file " << filename << " for writing." << std::endl;
-            }
-        }
-    };
+class Ball : Square {
     class LineReader {
         std::vector<std::string> lines;
         const std::string& filename;
@@ -111,9 +100,6 @@ class Ball {
             std::cout << line << std::endl;
         }
     }*/
-
-    Square classSquare;
-
     ALLEGRO_BITMAP* player;
     int imageWidth, imageHeight;
     float imageScale;
@@ -123,17 +109,11 @@ class Ball {
     float y_last, y_now;
 
 public:
-    const float epsilon = 3.0;
-    float gravity = 0.3, energyLoss = 0.8;
+    const float epsilon = 2.0;
+    float gravity = 0.5, energyLoss = 0.8;
     vec2 ball_position, ball_velocity;
-    const float eps = 1e-6;
 
     void Initialize() {
-        vec4 square_position(200, 100, 500, 400);
-        int square_thickness = 5;
-        Square box(square_position, square_thickness);
-        classSquare = box;
-
         player = al_load_bitmap("Bitmapa.png");
         imageWidth = al_get_bitmap_width(player);
         imageHeight = al_get_bitmap_height(player);
@@ -141,7 +121,7 @@ public:
         imageWidthScaled = imageWidth * imageScale;
         imageHeightScaled = imageHeight * imageScale;
 
-        y_last = classSquare.square_position.y1;
+        y_last = square_position.y1;
     }
 
     Ball() : ball_position(300.0, 200.0), ball_velocity(2.0, 7.0), y_now(ball_position.y) {
@@ -167,9 +147,9 @@ public:
         ball_velocity.y += gravity;
 
         // kolizja
-        if (ball_position.y + imageHeightScaled > classSquare.square_position.y2) {
+        if (ball_position.y + imageHeightScaled > square_position.y2) {
             ball_velocity.y = -ball_velocity.y * energyLoss;
-            ball_position.y = classSquare.square_position.y2 - imageHeightScaled;
+            ball_position.y = square_position.y2 - imageHeightScaled;
 
             if (y_now - y_last < epsilon and y_now != y_last) {
                 ball_stop = true;
@@ -178,16 +158,16 @@ public:
             y_last = y_now;
             y_now = ball_position.y;
         }
-        else if (ball_position.y < classSquare.square_position.y1) {
+        else if (ball_position.y < square_position.y1) {
             ball_velocity.y = -ball_velocity.y * energyLoss;
         }
-        else if (ball_position.x > classSquare.square_position.x2 - imageWidthScaled) {
+        else if (ball_position.x > square_position.x2 - imageWidthScaled) {
             ball_velocity.x = -ball_velocity.x * energyLoss;
-            ball_position.x = classSquare.square_position.x2 - imageWidthScaled;
+            ball_position.x = square_position.x2 - imageWidthScaled;
         }
-        else if (ball_position.x < classSquare.square_position.x1) {
+        else if (ball_position.x < square_position.x1) {
             ball_velocity.x = -ball_velocity.x * energyLoss;
-            ball_position.x = classSquare.square_position.x1;
+            ball_position.x = square_position.x1;
         }
 
         if (!ball_stop) {
@@ -196,27 +176,50 @@ public:
         }
         else {
             energyLoss = Damper(energyLoss, 0, 0.01);
-            std::cout << energyLoss << std::endl;
             if (energyLoss < 0.01) {
-                ball_position.y = classSquare.square_position.y2 - imageWidthScaled;
+                ball_position.y = square_position.y2 - imageWidthScaled;
                 energyLoss = 0, gravity = 0, ball_velocity.y = 0;
             }
         }
     }
 
-    void Display() {
-        std::cout << "-----------------------" << std::endl;
-        std::cout << "position: " << ball_position.x << ", " << ball_position.y << std::endl;
-        std::cout << "velocity: " << ball_velocity.x << ", " << ball_velocity.y << std::endl;
-        std::cout << "-----------------------" << std::endl;
-    }
+
 };
 
-class BallContainer {
-public:
-    std::vector<Ball*> balls;
+class BallContainer : Square {
+    class FileWriter {
+        std::string filepath;
+    public:
+        FileWriter() = default;
 
-    BallContainer() {}
+        FileWriter(const std::string& filepath_write) : filepath(filepath_write) {
+            std::ofstream file(filepath, std::ios::out | std::ios::trunc);
+            file.close();
+        }
+
+        void WriteToFile(const std::string& content) {
+            std::ofstream file(filepath, std::ios::app);
+            try {
+                if (!file.is_open()) {
+                    throw std::runtime_error("Error could not open file" + filepath + " for writing.");
+                }
+                file << content << std::endl;
+            }
+            catch (const std::exception& e) {
+                std::cerr << e.what() << std::endl;
+            }
+        }
+    };
+    
+    const int offset = 20;
+    int ballCounter = 0;
+
+    std::vector<Ball*> balls;
+public:
+    const std::string filepath_write = "output";
+    FileWriter fileWriter{ filepath_write };
+
+    BallContainer(const std::string filepath_write = "output.txt") : filepath_write(filepath_write) {}
 
     ~BallContainer() {
         for (const auto& ballPtr : balls) {
@@ -241,20 +244,28 @@ public:
             ballPtr->Collision();
         }
     }
+
+    void CreateBall() {
+        vec2 ball_position(RandomNumber(square_position.x1 + offset, square_position.x2 - offset), RandomNumber(square_position.y1 + offset, square_position.y2 - offset));
+        vec2 ball_velocity(RandomNumber(1, 10), RandomNumber(1, 10));
+        AddBall(ball_position, ball_velocity);
+        ballCounter += 1;
+
+        std::ostringstream counterStream;
+        counterStream << "Ball number: " << ballCounter;
+        std::ostringstream positionStream;
+        positionStream << "position: " << ball_position.x << ", " << ball_position.y;
+        std::ostringstream velocityStream;
+        velocityStream << "velocity: " << ball_velocity.x << ", " << ball_velocity.y;
+
+        std::string outputContent = counterStream.str() + "\n-----------------------\n" + positionStream.str() + "\n" + velocityStream.str() + "\n-----------------------\n";
+        fileWriter.WriteToFile(outputContent);
+    }
+
+    void DeleteBall() {
+        balls.erase(balls.begin());
+    }
 };
-
-int RandomNumber(int a, int b) {
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(a, b);
-    return distr(gen);
-}
-
-void CreateBall(BallContainer &ballList, const vec4& square) {
-    const int offset = 20;
-    vec2 position(RandomNumber(square.x1 + offset, square.x2 - offset), RandomNumber(square.y1 + offset, square.y2 - offset));
-    vec2 velocity(RandomNumber(1, 10), RandomNumber(1, 10));
-    ballList.AddBall(position, velocity);
-}
 
 int main() {
     al_init();
@@ -268,9 +279,11 @@ int main() {
     ALLEGRO_EVENT_QUEUE* event_queue = al_create_event_queue();
     ALLEGRO_TIMER* timer = al_create_timer(deltaTime);
     ALLEGRO_TIMER* timer_ball_spawn = al_create_timer(deltaTime * 250);
+    //ALLEGRO_TIMER* timer_ball_destruction = al_create_timer(deltaTime * 500);
 
     al_register_event_source(event_queue, al_get_timer_event_source(timer));
     al_register_event_source(event_queue, al_get_timer_event_source(timer_ball_spawn));
+    //al_register_event_source(event_queue, al_get_timer_event_source(timer_ball_destruction));
     al_register_event_source(event_queue, al_get_display_event_source(display));
     al_register_event_source(event_queue, al_get_mouse_event_source());
 
@@ -281,15 +294,9 @@ int main() {
     int square_thickness = 5;
     Square box(square_position, square_thickness);
 
-    vec2 position(300.0, 200.0);
-    vec2 velocity(2.0, 7.0);
-    vec2 pos(350.0, 250.0);
-    vec2 vel(0.0, 2.0);
-
-    BallContainer ballList;
-    ballList.AddBall(position, velocity);
-    //ballList.AddBall(pos, vel);
-    //ballList.AddBall(pos, velocity);
+    const std::string filepath_output = "output.txt";
+    BallContainer ballList(filepath_output);
+    ballList.CreateBall();
 
     al_start_timer(timer);
     al_start_timer(timer_ball_spawn);
@@ -310,20 +317,16 @@ int main() {
                 al_flip_display();
                 al_clear_to_color(al_map_rgb(0, 0, 0));
             }
-            //else if (events.timer.source == timer_ball_spawn) {
-            //    std::cout << 1;
-            //    //CreateBall(ballList, square_position);
-            //    for (auto element : ballList.balls) {
-            //        element->Display();
-            //    }
-            //}
+            else if (events.timer.source == timer_ball_spawn) {
+                ballList.CreateBall();
+            }
             
         }
-        //else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
-        //    // Dodaj nową piłkę po lewym kliknięciu myszy
-        //    if (events.mouse.button & 1)
-        //        CreateBall(ballList, square_position);
-        //}
+        else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
+            // Dodaj nową piłkę po lewym kliknięciu myszy
+            if (events.mouse.button & 1)
+                ballList.CreateBall();
+        }
     }
 
     al_destroy_font(font);
