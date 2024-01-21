@@ -318,9 +318,9 @@ int main() {
                 al_flip_display();
                 al_clear_to_color(al_map_rgb(0, 0, 0));
             }
-            /*else if (events.timer.source == timer_ball_spawn) {
+            else if (events.timer.source == timer_ball_spawn) {
                 ballList.CreateBall();
-            }*/
+            }
             
         }
         else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
