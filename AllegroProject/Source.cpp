@@ -21,10 +21,7 @@ std::random_device rd;  // Declare random_device globally
 struct vec2 {
     float x, y;
 
-    // Default constructor (initialize to zero)
     vec2() : x(0.0), y(0.0) {}
-
-    // Constructor with two arguments
     vec2(float x, float y) : x(x), y(y) {}
 };
 
@@ -64,43 +61,6 @@ public:
 };
 
 class Ball : public Square {
-    class LineReader {
-        std::vector<std::string> lines;
-        const std::string& filename;
-    public:
-        LineReader(const std::string& filename) : filename(filename) {}
-
-        // Function to read lines from a file and store them in a vector
-        bool readLinesFromFile() {
-            std::ifstream file(filename);
-            if (!file.is_open()) {
-                std::cerr << "Error opening file: " << filename << std::endl;
-                return false;
-            }
-
-            std::string line;
-            while (std::getline(file, line)) {
-                lines.push_back(line);
-            }
-
-            file.close();
-            return true;
-        }
-
-        // Function to get the vector of lines
-        const std::vector<std::string>& getLines() const {
-            return lines;
-        }
-    };
-
-    /*if (lineReader.readLinesFromFile("example.txt")) {
-        const std::vector<std::string>& linesFromFile = lineReader.getLines();
-        std::cout << "Lines from file:" << std::endl;
-        for (const auto& line : linesFromFile) {
-            std::cout << line << std::endl;
-        }
-    }*/
-
     ALLEGRO_BITMAP* player;
     int imageWidth, imageHeight;
     float imageScale;
@@ -195,6 +155,32 @@ public:
 };
 
 class BallContainer : public Square {
+public:
+    int ballCounter = 0;
+    int maxBallNumber = 20;
+private:
+    class FileReader {
+    private:
+        std::ifstream file;
+
+    public:
+        FileReader(const std::string& filepath_read) : file(filepath_read) {
+            if (!file.is_open()) {
+                std::cerr << "Error could not open file " << filepath_read << std::endl;
+            }
+        }
+
+        bool hasNextLine() const {
+            return file.is_open() && !file.eof();
+        }
+
+        std::string getNextLine() {
+            std::string line;
+            std::getline(file, line);
+            return line;
+        }
+    };
+
     class FileWriter {
         std::string filepath;
     public:
@@ -219,15 +205,84 @@ class BallContainer : public Square {
         }
     };
 
+    struct AllBallVariables {
+        float pos_x, pos_y, vel_x, vel_y;
+        int red, green, blue;
+
+        AllBallVariables(float pos_x, float pos_y, float vel_x, float vel_y, int red, int green, int blue) : pos_x(pos_x), pos_y(pos_y), vel_x(vel_x), vel_y(vel_y), red(red), green(green), blue(blue) {}
+    };
+    
+    std::vector<AllBallVariables> ReadFile(const std::string filepath_read = "input.txt") {
+        std::vector<AllBallVariables> ballsCreationQueue;
+        FileReader fileReader(filepath_read);
+        std::string line;
+
+        if (fileReader.hasNextLine()) {
+            line = fileReader.getNextLine();
+            std::istringstream numberStream(line);
+            numberStream.ignore(std::numeric_limits<std::streamsize>::max(), ' '); // Ignore "Max Balls: "
+            numberStream >> maxBallNumber;
+            line = fileReader.getNextLine(); // usunąć "------------"
+        }
+
+        while (fileReader.hasNextLine()) {
+            line = fileReader.getNextLine();
+
+            int ballNumber;
+            std::istringstream iss(line);
+            iss.ignore(std::numeric_limits<std::streamsize>::max(), ' '); // Ignore "Ball number: "
+            iss >> ballNumber;
+
+            float pos_x, pos_y, vel_x, vel_y;
+            // Read position line
+            line = fileReader.getNextLine();
+            std::istringstream positionStream(line);
+            positionStream.ignore(std::numeric_limits<std::streamsize>::max(), ':');
+            positionStream >> pos_x;
+            positionStream.ignore();
+            positionStream >> pos_y;
+
+            // Read velocity line
+            line = fileReader.getNextLine();
+            std::istringstream velocityStream(line);
+            velocityStream.ignore(std::numeric_limits<std::streamsize>::max(), ':');
+            velocityStream >> vel_x;
+            velocityStream.ignore();
+            velocityStream >> vel_y;
+
+            int red, green, blue;
+            // Read color line
+            line = fileReader.getNextLine();
+            std::istringstream colorStream(line);
+            colorStream.ignore(std::numeric_limits<std::streamsize>::max(), ':');
+            colorStream >> red;
+            colorStream.ignore();
+            colorStream >> green;
+            colorStream.ignore();
+            colorStream >> blue;
+            line = fileReader.getNextLine(); // usunąć "------------"
+
+            AllBallVariables variables(pos_x, pos_y, vel_x, vel_y, red, green, blue);
+            ballsCreationQueue.push_back(variables);
+
+        }
+        return ballsCreationQueue;
+    }
+
     const int offset = 20;
-    int ballCounter = 0;
 
     std::vector<Ball*> balls;
+    std::vector<AllBallVariables> ballsCreationQueue;
 public:
     const std::string filepath_write = "output.txt";
     FileWriter fileWriter{ filepath_write };
 
-    BallContainer(const std::string filepath_write = "output.txt") : filepath_write(filepath_write) {}
+    const std::string filepath_read = "input.txt";
+    FileReader fileReader{ filepath_read };
+
+    BallContainer(const std::string filepath_read = "input.txt", const std::string filepath_write = "output.txt") : filepath_read(filepath_read), filepath_write(filepath_write) {
+        ballsCreationQueue = ReadFile(filepath_read);
+    }
 
     ~BallContainer() {
         for (const auto& ballPtr : balls) {
@@ -261,23 +316,7 @@ public:
         }
     }
 
-    void CreateColoredBall() {
-        // Losuj kolory RGB
-        int red = RandomNumber(0, 255);
-        int green = RandomNumber(0, 255);
-        int blue = RandomNumber(0, 255);
-
-        // Utwórz nową piłkę z losowym kolorem
-        vec2 ball_position(RandomNumber(square_position.x1 + offset, square_position.x2 - offset),
-            RandomNumber(square_position.y1 + offset, square_position.y2 - offset));
-        vec2 ball_velocity(RandomNumber(1, 10), RandomNumber(1, 10));
-        AddBall(ball_position, ball_velocity);
-
-        // Ustaw kolor piłki
-        balls.back()->SetBallColor(red, green, blue);
-
-        ballCounter += 1;
-
+    void FileWrite(vec2 ball_position, vec2 ball_velocity, int red, int green, int blue) {
         // Zapisz informacje o piłce do pliku
         std::ostringstream counterStream;
         counterStream << "Ball number: " << ballCounter;
@@ -288,11 +327,50 @@ public:
         std::ostringstream colorStream;
         colorStream << "color: " << red << ", " << green << ", " << blue;
 
-        std::string outputContent = counterStream.str() + "\n-----------------------\n" +
+        std::string outputContent = counterStream.str() + "\n" +
             positionStream.str() + "\n" +
             velocityStream.str() + "\n" +
-            colorStream.str() + "\n-----------------------\n";
+            colorStream.str() + "\n-----------------------";
         fileWriter.WriteToFile(outputContent);
+    }
+
+    int red, green, blue;
+    void CreateColoredBall() {
+        if (ballsCreationQueue.size() != 1) {
+            const auto& ballPtr = ballsCreationQueue[ballCounter];
+
+            red = ballPtr.red;
+            green = ballPtr.green;
+            blue = ballPtr.blue;
+
+            vec2 ball_position(ballPtr.pos_x, ballPtr.pos_y);
+            vec2 ball_velocity(ballPtr.vel_x, ballPtr.vel_y);
+
+            AddBall(ball_position, ball_velocity);
+
+            balls.back()->SetBallColor(red, green, blue);
+            ballCounter += 1;
+            FileWrite(ball_position, ball_velocity, red, green, blue);
+
+            ballsCreationQueue.erase(ballsCreationQueue.begin());
+        }
+        else {
+            // Losuj kolory RGB
+            red = RandomNumber(0, 255);
+            green = RandomNumber(0, 255);
+            blue = RandomNumber(0, 255);
+
+            // Utwórz nową piłkę z losowym kolorem
+            vec2 ball_position(RandomNumber(square_position.x1 + offset, square_position.x2 - offset),
+                RandomNumber(square_position.y1 + offset, square_position.y2 - offset));
+            vec2 ball_velocity(RandomNumber(1, 10), RandomNumber(1, 10));
+            AddBall(ball_position, ball_velocity);
+
+            // Ustaw kolor piłki
+            balls.back()->SetBallColor(red, green, blue);
+            ballCounter += 1;
+            FileWrite(ball_position, ball_velocity, red, green, blue);
+        }
     }
 };
 
@@ -321,9 +399,9 @@ int main() {
     int square_thickness = 5;
     Square box(square_position, square_thickness);
 
+    const std::string filepath_read = "input.txt";
     const std::string filepath_output = "output.txt";
-    BallContainer ballList(filepath_output);
-    ballList.CreateColoredBall();
+    BallContainer ballList(filepath_read, filepath_output);
 
     al_start_timer(timer);
     al_start_timer(timer_ball_spawn);

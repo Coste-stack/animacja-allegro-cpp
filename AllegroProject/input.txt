@@ -1,0 +1,13 @@
+Max Balls: 20
+-----------------------
+Ball number: 1
+position: 286, 307
+velocity: 4, 12
+color: 88, 48, 12
+-----------------------
+Ball number: 2
+position: 367, 286
+velocity: 6, 9
+color: 157, 182, 84
+-----------------------
+
