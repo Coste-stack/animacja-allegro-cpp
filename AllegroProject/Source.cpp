@@ -24,7 +24,7 @@ struct vec2 {
     // Default constructor (initialize to zero)
     vec2() : x(0.0), y(0.0) {}
 
-    // Constructor with three arguments
+    // Constructor with two arguments
     vec2(float x, float y) : x(x), y(y) {}
 };
 
@@ -63,7 +63,7 @@ public:
     }
 };
 
-class Ball : Square {
+class Ball : public Square {
     class LineReader {
         std::vector<std::string> lines;
         const std::string& filename;
@@ -100,6 +100,7 @@ class Ball : Square {
             std::cout << line << std::endl;
         }
     }*/
+
     ALLEGRO_BITMAP* player;
     int imageWidth, imageHeight;
     float imageScale;
@@ -107,6 +108,9 @@ class Ball : Square {
 
     bool ball_stop = false;
     float y_last, y_now;
+
+    int ballColorRed, ballColorGreen, ballColorBlue;
+
 public:
     const float epsilon = 2.0;
     float gravity = 0.4, energyLoss = 0.75;
@@ -123,11 +127,11 @@ public:
         y_last = square_position.y1;
     }
 
-    Ball() : ball_position(300.0, 200.0), ball_velocity(2.0, 7.0), y_now(ball_position.y) {
+    Ball() : ball_position(300.0, 200.0), ball_velocity(2.0, 7.0), y_now(ball_position.y), ballColorRed(255), ballColorGreen(255), ballColorBlue(255) {
         Initialize();
     }
 
-    Ball(vec2 ball_position, vec2 ball_velocity) : ball_position(ball_position), ball_velocity(ball_velocity), y_now(ball_position.y) {
+    Ball(vec2 ball_position, vec2 ball_velocity) : ball_position(ball_position), ball_velocity(ball_velocity), y_now(ball_position.y), ballColorRed(255), ballColorGreen(255), ballColorBlue(255) {
         Initialize();
     }
 
@@ -136,8 +140,15 @@ public:
     }
 
     void Draw() {
-        //al_draw_tinted_scaled_bitmap(player, al_map_rgb(random_number(0, 255), random_number(0, 255), random_number(0, 255)), 0, 0, imageWidth, imageHeight, position.x, position.y, imageWidthScaled, imageHeightScaled, 0);
-        al_draw_scaled_bitmap(player, 0, 0, imageWidth, imageHeight, ball_position.x, ball_position.y, imageWidthScaled, imageHeightScaled, 0);
+        al_draw_tinted_scaled_bitmap(player, al_map_rgb(ballColorRed, ballColorGreen, ballColorBlue),
+            0, 0, imageWidth, imageHeight,
+            ball_position.x, ball_position.y, imageWidthScaled, imageHeightScaled, 0);
+    }
+
+    void SetBallColor(int red, int green, int blue) {
+        ballColorRed = red;
+        ballColorGreen = green;
+        ballColorBlue = blue;
     }
 
     void Collision() {
@@ -181,11 +192,9 @@ public:
             }
         }
     }
-
-
 };
 
-class BallContainer : Square {
+class BallContainer : public Square {
     class FileWriter {
         std::string filepath;
     public:
@@ -209,13 +218,13 @@ class BallContainer : Square {
             }
         }
     };
-    
+
     const int offset = 20;
     int ballCounter = 0;
 
     std::vector<Ball*> balls;
 public:
-    const std::string filepath_write = "output";
+    const std::string filepath_write = "output.txt";
     FileWriter fileWriter{ filepath_write };
 
     BallContainer(const std::string filepath_write = "output.txt") : filepath_write(filepath_write) {}
@@ -252,20 +261,37 @@ public:
         }
     }
 
-    void CreateBall() {
-        vec2 ball_position(RandomNumber(square_position.x1 + offset, square_position.x2 - offset), RandomNumber(square_position.y1 + offset, square_position.y2 - offset));
+    void CreateColoredBall() {
+        // Losuj kolory RGB
+        int red = RandomNumber(0, 255);
+        int green = RandomNumber(0, 255);
+        int blue = RandomNumber(0, 255);
+
+        // Utwórz nową piłkę z losowym kolorem
+        vec2 ball_position(RandomNumber(square_position.x1 + offset, square_position.x2 - offset),
+            RandomNumber(square_position.y1 + offset, square_position.y2 - offset));
         vec2 ball_velocity(RandomNumber(1, 10), RandomNumber(1, 10));
         AddBall(ball_position, ball_velocity);
+
+        // Ustaw kolor piłki
+        balls.back()->SetBallColor(red, green, blue);
+
         ballCounter += 1;
 
+        // Zapisz informacje o piłce do pliku
         std::ostringstream counterStream;
         counterStream << "Ball number: " << ballCounter;
         std::ostringstream positionStream;
         positionStream << "position: " << ball_position.x << ", " << ball_position.y;
         std::ostringstream velocityStream;
         velocityStream << "velocity: " << ball_velocity.x << ", " << ball_velocity.y;
+        std::ostringstream colorStream;
+        colorStream << "color: " << red << ", " << green << ", " << blue;
 
-        std::string outputContent = counterStream.str() + "\n-----------------------\n" + positionStream.str() + "\n" + velocityStream.str() + "\n-----------------------\n";
+        std::string outputContent = counterStream.str() + "\n-----------------------\n" +
+            positionStream.str() + "\n" +
+            velocityStream.str() + "\n" +
+            colorStream.str() + "\n-----------------------\n";
         fileWriter.WriteToFile(outputContent);
     }
 };
@@ -297,7 +323,7 @@ int main() {
 
     const std::string filepath_output = "output.txt";
     BallContainer ballList(filepath_output);
-    ballList.CreateBall();
+    ballList.CreateColoredBall();
 
     al_start_timer(timer);
     al_start_timer(timer_ball_spawn);
@@ -319,14 +345,14 @@ int main() {
                 al_clear_to_color(al_map_rgb(0, 0, 0));
             }
             else if (events.timer.source == timer_ball_spawn) {
-                ballList.CreateBall();
+                ballList.CreateColoredBall();
             }
-            
+
         }
         else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
             // Dodaj nową piłkę po lewym kliknięciu myszy
             if (events.mouse.button & 1)
-                ballList.CreateBall();
+                ballList.CreateColoredBall();
         }
     }
 
