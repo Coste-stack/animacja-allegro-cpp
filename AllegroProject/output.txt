@@ -1,36 +1,12 @@
 Ball number: 1
 -----------------------
-position: 378, 369
-velocity: 9, 4
+position: 267, 143
+velocity: 4, 5
 -----------------------
 
 Ball number: 2
 -----------------------
-position: 330, 274
-velocity: 5, 7
------------------------
-
-Ball number: 3
------------------------
-position: 410, 182
-velocity: 4, 7
------------------------
-
-Ball number: 4
------------------------
-position: 361, 271
-velocity: 7, 8
------------------------
-
-Ball number: 5
------------------------
-position: 316, 274
-velocity: 4, 2
------------------------
-
-Ball number: 6
------------------------
-position: 341, 229
-velocity: 3, 9
+position: 256, 286
+velocity: 6, 4
 -----------------------
 

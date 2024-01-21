@@ -107,10 +107,9 @@ class Ball : Square {
 
     bool ball_stop = false;
     float y_last, y_now;
-
 public:
     const float epsilon = 2.0;
-    float gravity = 0.5, energyLoss = 0.8;
+    float gravity = 0.4, energyLoss = 0.75;
     vec2 ball_position, ball_velocity;
 
     void Initialize() {
@@ -176,9 +175,9 @@ public:
         }
         else {
             energyLoss = Damper(energyLoss, 0, 0.01);
-            if (energyLoss < 0.01) {
+            if (energyLoss < 0.01 && energyLoss != 0) {
                 ball_position.y = square_position.y2 - imageWidthScaled;
-                energyLoss = 0, gravity = 0, ball_velocity.y = 0;
+                gravity = 0, ball_velocity.y = 0;
             }
         }
     }
@@ -239,9 +238,17 @@ public:
         }
     }
 
-    void SimulateBalls() const {
+    void DeleteBall() {
+        balls.erase(balls.begin());
+    }
+
+    void SimulateBalls() {
         for (const auto& ballPtr : balls) {
             ballPtr->Collision();
+            if (ballPtr->energyLoss < 0.005) {
+                ballPtr->energyLoss = 0;
+                DeleteBall();
+            }
         }
     }
 
@@ -261,10 +268,6 @@ public:
         std::string outputContent = counterStream.str() + "\n-----------------------\n" + positionStream.str() + "\n" + velocityStream.str() + "\n-----------------------\n";
         fileWriter.WriteToFile(outputContent);
     }
-
-    void DeleteBall() {
-        balls.erase(balls.begin());
-    }
 };
 
 int main() {
@@ -278,12 +281,10 @@ int main() {
     ALLEGRO_DISPLAY* display = al_create_display(ScreenWidth, ScreenHeight);
     ALLEGRO_EVENT_QUEUE* event_queue = al_create_event_queue();
     ALLEGRO_TIMER* timer = al_create_timer(deltaTime);
-    ALLEGRO_TIMER* timer_ball_spawn = al_create_timer(deltaTime * 250);
-    //ALLEGRO_TIMER* timer_ball_destruction = al_create_timer(deltaTime * 500);
+    ALLEGRO_TIMER* timer_ball_spawn = al_create_timer(deltaTime * 100);
 
     al_register_event_source(event_queue, al_get_timer_event_source(timer));
     al_register_event_source(event_queue, al_get_timer_event_source(timer_ball_spawn));
-    //al_register_event_source(event_queue, al_get_timer_event_source(timer_ball_destruction));
     al_register_event_source(event_queue, al_get_display_event_source(display));
     al_register_event_source(event_queue, al_get_mouse_event_source());
 
@@ -317,9 +318,9 @@ int main() {
                 al_flip_display();
                 al_clear_to_color(al_map_rgb(0, 0, 0));
             }
-            else if (events.timer.source == timer_ball_spawn) {
+            /*else if (events.timer.source == timer_ball_spawn) {
                 ballList.CreateBall();
-            }
+            }*/
             
         }
         else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
