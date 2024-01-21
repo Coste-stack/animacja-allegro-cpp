@@ -10,14 +10,13 @@
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_ttf.h>
 #include <allegro5/allegro_font.h>
-using namespace std;
 
 #define ScreenWidth 800
 #define ScreenHeight 600
 
 const float deltaTime = 1.0 / 60.0;
 
-random_device rd;  // Declare random_device globally
+std::random_device rd;  // Declare random_device globally
 
 struct vec2 {
     float x, y;
@@ -76,6 +75,42 @@ class Ball {
             }
         }
     };
+    class LineReader {
+        std::vector<std::string> lines;
+        const std::string& filename;
+    public:
+        LineReader(const std::string& filename) : filename(filename) {}
+
+        // Function to read lines from a file and store them in a vector
+        bool readLinesFromFile() {
+            std::ifstream file(filename);
+            if (!file.is_open()) {
+                std::cerr << "Error opening file: " << filename << std::endl;
+                return false;
+            }
+
+            std::string line;
+            while (std::getline(file, line)) {
+                lines.push_back(line);
+            }
+
+            file.close();
+            return true;
+        }
+
+        // Function to get the vector of lines
+        const std::vector<std::string>& getLines() const {
+            return lines;
+        }
+    };
+
+    /*if (lineReader.readLinesFromFile("example.txt")) {
+        const std::vector<std::string>& linesFromFile = lineReader.getLines();
+        std::cout << "Lines from file:" << std::endl;
+        for (const auto& line : linesFromFile) {
+            std::cout << line << std::endl;
+        }
+    }*/
 
     Square classSquare;
 
@@ -88,9 +123,10 @@ class Ball {
     float y_last, y_now;
 
 public:
-    const float epsilon = 1.0;
+    const float epsilon = 3.0;
     float gravity = 0.3, energyLoss = 0.8;
     vec2 ball_position, ball_velocity;
+    const float eps = 1e-6;
 
     void Initialize() {
         vec4 square_position(200, 100, 500, 400);
@@ -160,23 +196,28 @@ public:
         }
         else {
             energyLoss = Damper(energyLoss, 0, 0.01);
+            std::cout << energyLoss << std::endl;
+            if (energyLoss < 0.01) {
+                ball_position.y = classSquare.square_position.y2 - imageWidthScaled;
+                energyLoss = 0, gravity = 0, ball_velocity.y = 0;
+            }
         }
     }
 
     void Display() {
+        std::cout << "-----------------------" << std::endl;
         std::cout << "position: " << ball_position.x << ", " << ball_position.y << std::endl;
         std::cout << "velocity: " << ball_velocity.x << ", " << ball_velocity.y << std::endl;
-        std::cout << std::endl;
+        std::cout << "-----------------------" << std::endl;
     }
 };
 
 class BallContainer {
-    std::vector<Ball*> balls;
 public:
-    // Constructor
+    std::vector<Ball*> balls;
+
     BallContainer() {}
 
-    // Destructor to free allocated memory
     ~BallContainer() {
         for (const auto& ballPtr : balls) {
             delete ballPtr;
@@ -184,24 +225,27 @@ public:
         balls.clear();
     }
 
-    // Add a Ball object to the vector
     void AddBall(vec2 ball_position, vec2 ball_velocity) {
         Ball* ball = new Ball(ball_position, ball_velocity);
         balls.push_back(ball);
     }
 
-    // Display all the Ball objects in the vector
-    void DisplayBalls() const {
+    void DrawBalls() const {
         for (const auto& ballPtr : balls) {
             ballPtr->Draw();
+        }
+    }
+
+    void SimulateBalls() const {
+        for (const auto& ballPtr : balls) {
             ballPtr->Collision();
         }
     }
 };
 
 int RandomNumber(int a, int b) {
-    mt19937 gen(rd());  // Use the globally declared random_device
-    uniform_int_distribution<> distr(a, b);
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distr(a, b);
     return distr(gen);
 }
 
@@ -223,8 +267,10 @@ int main() {
     ALLEGRO_DISPLAY* display = al_create_display(ScreenWidth, ScreenHeight);
     ALLEGRO_EVENT_QUEUE* event_queue = al_create_event_queue();
     ALLEGRO_TIMER* timer = al_create_timer(deltaTime);
+    ALLEGRO_TIMER* timer_ball_spawn = al_create_timer(deltaTime * 250);
 
     al_register_event_source(event_queue, al_get_timer_event_source(timer));
+    al_register_event_source(event_queue, al_get_timer_event_source(timer_ball_spawn));
     al_register_event_source(event_queue, al_get_display_event_source(display));
     al_register_event_source(event_queue, al_get_mouse_event_source());
 
@@ -242,10 +288,11 @@ int main() {
 
     BallContainer ballList;
     ballList.AddBall(position, velocity);
-    ballList.AddBall(pos, vel);
-    ballList.AddBall(pos, velocity);
+    //ballList.AddBall(pos, vel);
+    //ballList.AddBall(pos, velocity);
 
     al_start_timer(timer);
+    al_start_timer(timer_ball_spawn);
     bool done = false;
     while (!done) {
         ALLEGRO_EVENT events;
@@ -255,22 +302,34 @@ int main() {
             done = true;
         }
         else if (events.type == ALLEGRO_EVENT_TIMER) {
-            ballList.DisplayBalls();
+            if (events.timer.source == timer) {
+                ballList.DrawBalls();
+                ballList.SimulateBalls();
 
-            box.Draw();
-            al_flip_display();
-            al_clear_to_color(al_map_rgb(0, 0, 0));
+                box.Draw();
+                al_flip_display();
+                al_clear_to_color(al_map_rgb(0, 0, 0));
+            }
+            //else if (events.timer.source == timer_ball_spawn) {
+            //    std::cout << 1;
+            //    //CreateBall(ballList, square_position);
+            //    for (auto element : ballList.balls) {
+            //        element->Display();
+            //    }
+            //}
+            
         }
-        else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
-            // Dodaj nową piłkę po lewym kliknięciu myszy
-            if (events.mouse.button & 1)
-                CreateBall(ballList, square_position);
-        }
+        //else if (events.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
+        //    // Dodaj nową piłkę po lewym kliknięciu myszy
+        //    if (events.mouse.button & 1)
+        //        CreateBall(ballList, square_position);
+        //}
     }
 
     al_destroy_font(font);
     al_destroy_display(display);
     al_destroy_timer(timer);
+    al_destroy_timer(timer_ball_spawn);
     al_destroy_event_queue(event_queue);
 
     return 0;
