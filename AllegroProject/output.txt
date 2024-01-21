@@ -9,32 +9,12 @@ velocity: 6, 9
 color: 157, 182, 84
 -----------------------
 Ball number: 3
-position: 330, 152
-velocity: 6, 6
-color: 17, 36, 207
+position: 358, 358
+velocity: 10, 9
+color: 212, 14, 113
 -----------------------
 Ball number: 4
-position: 419, 273
-velocity: 1, 8
-color: 160, 200, 129
------------------------
-Ball number: 5
-position: 299, 212
-velocity: 7, 4
-color: 163, 84, 79
------------------------
-Ball number: 6
-position: 301, 228
-velocity: 8, 9
-color: 17, 79, 154
------------------------
-Ball number: 7
-position: 435, 212
-velocity: 10, 1
-color: 147, 72, 134
------------------------
-Ball number: 8
-position: 240, 235
-velocity: 8, 3
-color: 133, 44, 167
+position: 382, 283
+velocity: 4, 5
+color: 66, 37, 79
 -----------------------

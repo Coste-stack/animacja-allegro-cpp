@@ -1,4 +1,4 @@
-Max Balls: 20
+Max Balls: 8
 -----------------------
 Ball number: 1
 position: 286, 307

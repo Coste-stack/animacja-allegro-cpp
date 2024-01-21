@@ -220,7 +220,7 @@ private:
         if (fileReader.hasNextLine()) {
             line = fileReader.getNextLine();
             std::istringstream numberStream(line);
-            numberStream.ignore(std::numeric_limits<std::streamsize>::max(), ' '); // Ignore "Max Balls: "
+            numberStream.ignore(std::numeric_limits<std::streamsize>::max(), ':'); // Ignore "Max Balls: "
             numberStream >> maxBallNumber;
             line = fileReader.getNextLine(); // usunąć "------------"
         }
@@ -424,6 +424,8 @@ int main() {
             }
             else if (events.timer.source == timer_ball_spawn) {
                 ballList.CreateColoredBall();
+                if (ballList.ballCounter > ballList.maxBallNumber)
+                    done = true;
             }
 
         }
